@@ -1,0 +1,132 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Login - Smart Attendance App</title>
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+    <!-- Navigation -->
+    <nav class="navbar">
+        <a href="index.html" class="navbar-brand">
+            <span>📚</span>
+            <span>Smart Attendance App</span>
+        </a>
+        <div class="navbar-nav">
+            <a href="index.html" class="nav-link">Home</a>
+        </div>
+    </nav>
+
+    <div class="container">
+        <div class="card" style="max-width: 450px; margin: 2rem auto;">
+            <div class="card-header text-center">
+                <h2 class="card-title">Login to Your Account</h2>
+                <p class="card-subtitle">Enter your credentials to access the dashboard</p>
+            </div>
+
+            <!-- Alert Message -->
+            <div id="alertMessage" class="hidden"></div>
+
+            <!-- Login Form -->
+            <form id="loginForm">
+                <div class="form-group">
+                    <label for="username" class="form-label">Username</label>
+                    <input type="text" id="username" class="form-control" required 
+                           placeholder="Enter your username">
+                </div>
+
+                <div class="form-group">
+                    <label for="password" class="form-label">Password</label>
+                    <input type="password" id="password" class="form-control" required 
+                           placeholder="Enter your password">
+                </div>
+
+                <button type="submit" class="btn btn-primary btn-block">
+                    Login
+                </button>
+            </form>
+
+            <!-- Demo Accounts Info -->
+            <div style="margin-top: 2rem; padding-top: 2rem; border-top: 1px solid var(--border-color);">
+                <h4 style="color: var(--text-dark); margin-bottom: 1rem;">Demo Accounts</h4>
+                
+                <div style="background: var(--bg-light); padding: 1rem; border-radius: 5px; margin-bottom: 1rem;">
+                    <strong style="color: var(--primary-color);">👨‍🏫 Teacher:</strong>
+                    <div style="margin-top: 0.5rem; color: var(--text-light);">
+                        Username: teacher1<br>
+                        Password: password123
+                    </div>
+                </div>
+
+                <div style="background: var(--bg-light); padding: 1rem; border-radius: 5px; margin-bottom: 1rem;">
+                    <strong style="color: var(--secondary-color);">👨‍🎓 Student 1:</strong>
+                    <div style="margin-top: 0.5rem; color: var(--text-light);">
+                        Username: student1<br>
+                        Password: password123<br>
+                        <small>Interests: Programming, AI</small>
+                    </div>
+                </div>
+
+                <div style="background: var(--bg-light); padding: 1rem; border-radius: 5px;">
+                    <strong style="color: var(--secondary-color);">👩‍🎓 Student 2:</strong>
+                    <div style="margin-top: 0.5rem; color: var(--text-light);">
+                        Username: student2<br>
+                        Password: password123<br>
+                        <small>Interests: Design, Business</small>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="app.js"></script>
+    <script>
+        // Handle login form submission
+        document.getElementById('loginForm').addEventListener('submit', function(e) {
+            e.preventDefault();
+            
+            const username = document.getElementById('username').value;
+            const password = document.getElementById('password').value;
+            const alertDiv = document.getElementById('alertMessage');
+            
+            // Attempt login
+            const result = app.login(username, password);
+            
+            if (result.success) {
+                // Show success message
+                alertDiv.className = 'alert alert-success';
+                alertDiv.textContent = 'Login successful! Redirecting...';
+                alertDiv.classList.remove('hidden');
+                
+                // Redirect based on user role
+                setTimeout(() => {
+                    if (result.user.role === 'teacher') {
+                        window.location.href = 'teacher-dashboard.html';
+                    } else {
+                        window.location.href = 'student-dashboard.html';
+                    }
+                }, 1000);
+            } else {
+                // Show error message
+                alertDiv.className = 'alert alert-error';
+                alertDiv.textContent = 'Invalid username or password. Please try again.';
+                alertDiv.classList.remove('hidden');
+                
+                // Clear password field
+                document.getElementById('password').value = '';
+            }
+        });
+
+        // Check if already logged in
+        if (app.isAuthenticated()) {
+            const user = app.getCurrentUser();
+            if (user.role === 'teacher') {
+                window.location.href = 'teacher-dashboard.html';
+            } else {
+                window.location.href = 'student-dashboard.html';
+            }
+        }
+    </script>
+</body>
+</html>

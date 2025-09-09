@@ -1,0 +1,270 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Teacher Dashboard - Smart Attendance App</title>
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+    <!-- Navigation -->
+    <nav class="navbar">
+        <a href="index.html" class="navbar-brand">
+            <span>📚</span>
+            <span>Smart Attendance App</span>
+        </a>
+        <div class="navbar-nav">
+            <span class="user-info" id="userName"></span>
+            <a href="teacher-dashboard.html" class="nav-link">Dashboard</a>
+            <button onclick="app.logout()" class="btn btn-outline">Logout</button>
+        </div>
+    </nav>
+
+    <div class="container">
+        <!-- Welcome Card -->
+        <div class="card">
+            <div class="card-header">
+                <h1 class="card-title">👨‍🏫 Teacher Dashboard</h1>
+                <p class="card-subtitle" id="welcomeMessage"></p>
+            </div>
+        </div>
+
+        <!-- Classes Management -->
+        <div class="card">
+            <div class="card-header">
+                <h2 class="card-title">📚 Your Classes</h2>
+                <p class="card-subtitle">Generate QR codes for attendance tracking</p>
+            </div>
+            
+            <div class="grid" id="classesList">
+                <!-- Classes will be loaded here -->
+            </div>
+        </div>
+
+        <!-- Attendance Statistics -->
+        <div class="card">
+            <div class="card-header">
+                <h2 class="card-title">📊 Attendance Overview</h2>
+                <p class="card-subtitle">Track attendance statistics for your classes</p>
+            </div>
+            
+            <div style="overflow-x: auto;">
+                <table class="table">
+                    <thead>
+                        <tr>
+                            <th>Class Name</th>
+                            <th>Enrolled Students</th>
+                            <th>Total Sessions</th>
+                            <th>Average Attendance</th>
+                        </tr>
+                    </thead>
+                    <tbody id="statsTable">
+                        <!-- Statistics will be loaded here -->
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        <!-- Recent Activity -->
+        <div class="card">
+            <div class="card-header">
+                <h2 class="card-title">🕐 Recent QR Codes Generated</h2>
+                <p class="card-subtitle">View recently generated QR codes and their status</p>
+            </div>
+            
+            <div id="recentQRCodes">
+                <!-- Recent QR codes will be displayed here -->
+            </div>
+        </div>
+    </div>
+
+    <script src="app.js"></script>
+    <script>
+        // Check authentication
+        if (!app.checkAuth()) {
+            // Will redirect to login if not authenticated
+        } else {
+            const user = app.getCurrentUser();
+            
+            // Check if user is a teacher
+            if (user.role !== 'teacher') {
+                window.location.href = 'student-dashboard.html';
+            }
+            
+            // Update welcome message
+            document.getElementById('userName').textContent = `Welcome, ${user.name}!`;
+            document.getElementById('welcomeMessage').textContent = 
+                `Manage your classes and track student attendance`;
+            
+            // Load teacher's classes
+            loadClasses();
+            
+            // Load statistics
+            loadStatistics();
+            
+            // Load recent QR codes
+            loadRecentQRCodes();
+        }
+        
+        function loadClasses() {
+            const user = app.getCurrentUser();
+            const classes = app.getTeacherClasses(user.id);
+            const classesDiv = document.getElementById('classesList');
+            
+            if (classes.length === 0) {
+                classesDiv.innerHTML = `
+                    <div style="text-align: center; padding: 2rem; color: var(--text-light);">
+                        <p>No classes assigned yet.</p>
+                    </div>
+                `;
+            } else {
+                classesDiv.innerHTML = classes.map(cls => `
+                    <div class="card" style="border: 1px solid var(--border-color);">
+                        <h3 style="color: var(--primary-color); margin-bottom: 1rem;">${cls.name}</h3>
+                        <p style="color: var(--text-light); margin-bottom: 1rem;">Class ID: ${cls.id}</p>
+                        
+                        ${cls.schedule ? `
+                            <div style="background: var(--bg-light); padding: 0.75rem; border-radius: 5px; margin-bottom: 1rem;">
+                                <strong>Schedule:</strong><br>
+                                ${Object.entries(cls.schedule).map(([day, time]) => 
+                                    `${day}: ${time}`
+                                ).join('<br>')}
+                            </div>
+                        ` : ''}
+                        
+                        <button onclick="generateQRForClass(${cls.id}, '${cls.name}')" 
+                                class="btn btn-primary btn-block">
+                            Generate QR Code for Attendance
+                        </button>
+                        
+                        <div id="qr-result-${cls.id}" style="display: none;">
+                            <div class="qr-container">
+                                <h4 style="color: var(--success-color); margin-bottom: 1rem;">
+                                    ✅ QR Code Generated!
+                                </h4>
+                                <div class="qr-code">
+                                    <pre id="qr-visual-${cls.id}" style="font-size: 0.6rem; line-height: 0.6rem;"></pre>
+                                </div>
+                                <p style="color: var(--warning-color); font-size: 0.9rem; margin: 1rem 0;">
+                                    ⏱️ This QR code expires in 5 minutes
+                                </p>
+                                <div class="qr-data" id="qr-data-${cls.id}"></div>
+                                <p style="margin-top: 1rem; font-size: 0.9rem; color: var(--text-light);">
+                                    Students should enter this code in their dashboard
+                                </p>
+                            </div>
+                        </div>
+                    </div>
+                `).join('');
+            }
+        }
+        
+        function generateQRForClass(classId, className) {
+            // Generate QR code
+            const qrData = app.generateQRCode(classId);
+            
+            // Show QR code
+            const resultDiv = document.getElementById(`qr-result-${classId}`);
+            resultDiv.style.display = 'block';
+            
+            // Display visual QR representation
+            const qrVisual = app.generateQRVisual(qrData);
+            document.getElementById(`qr-visual-${classId}`).textContent = qrVisual;
+            
+            // Display QR data
+            document.getElementById(`qr-data-${classId}`).innerHTML = `
+                <strong>QR Code Data:</strong><br>
+                <code style="word-break: break-all;">${qrData}</code>
+            `;
+            
+            // Show success notification
+            const alertDiv = document.createElement('div');
+            alertDiv.className = 'alert alert-success';
+            alertDiv.textContent = `QR Code generated for ${className}! Students can now mark attendance.`;
+            resultDiv.insertBefore(alertDiv, resultDiv.firstChild);
+            
+            // Hide success message after 3 seconds
+            setTimeout(() => {
+                alertDiv.remove();
+            }, 3000);
+            
+            // Auto-hide QR code after 5 minutes
+            setTimeout(() => {
+                resultDiv.style.display = 'none';
+            }, 5 * 60 * 1000);
+            
+            // Reload recent QR codes
+            loadRecentQRCodes();
+        }
+        
+        function loadStatistics() {
+            const user = app.getCurrentUser();
+            const classes = app.getTeacherClasses(user.id);
+            const tbody = document.getElementById('statsTable');
+            
+            if (classes.length === 0) {
+                tbody.innerHTML = `
+                    <tr>
+                        <td colspan="4" style="text-align: center; color: var(--text-light);">
+                            No classes to show statistics for
+                        </td>
+                    </tr>
+                `;
+            } else {
+                tbody.innerHTML = classes.map(cls => {
+                    const stats = app.getClassStats(cls.id);
+                    return `
+                        <tr>
+                            <td>${cls.name}</td>
+                            <td>${stats.enrolledStudents}</td>
+                            <td>${stats.totalSessions}</td>
+                            <td>${stats.averageAttendance}%</td>
+                        </tr>
+                    `;
+                }).join('');
+            }
+        }
+        
+        function loadRecentQRCodes() {
+            const qrCodes = JSON.parse(localStorage.getItem('qrCodes') || '[]');
+            const classes = JSON.parse(localStorage.getItem('classes') || '[]');
+            const recentDiv = document.getElementById('recentQRCodes');
+            
+            // Get last 5 QR codes
+            const recent = qrCodes.slice(-5).reverse();
+            
+            if (recent.length === 0) {
+                recentDiv.innerHTML = `
+                    <div style="text-align: center; padding: 2rem; color: var(--text-light);">
+                        <p>No QR codes generated yet</p>
+                    </div>
+                `;
+            } else {
+                recentDiv.innerHTML = recent.map(qr => {
+                    const cls = classes.find(c => c.id === qr.classId);
+                    const isExpired = new Date(qr.expiresAt) < new Date();
+                    
+                    return `
+                        <div style="padding: 1rem; background: var(--bg-light); border-radius: 5px; margin-bottom: 1rem;">
+                            <div class="flex-between">
+                                <div>
+                                    <strong>${cls ? cls.name : 'Unknown Class'}</strong><br>
+                                    <small style="color: var(--text-light);">
+                                        Generated: ${app.formatDateTime(qr.timestamp)}
+                                    </small>
+                                </div>
+                                <div>
+                                    ${isExpired ? 
+                                        '<span class="badge badge-absent">Expired</span>' : 
+                                        '<span class="badge badge-present">Active</span>'
+                                    }
+                                </div>
+                            </div>
+                        </div>
+                    `;
+                }).join('');
+            }
+        }
+    </script>
+</body>
+</html>

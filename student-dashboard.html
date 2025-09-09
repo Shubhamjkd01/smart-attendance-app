@@ -1,0 +1,183 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Student Dashboard - Smart Attendance App</title>
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+    <!-- Navigation -->
+    <nav class="navbar">
+        <a href="index.html" class="navbar-brand">
+            <span>📚</span>
+            <span>Smart Attendance App</span>
+        </a>
+        <div class="navbar-nav">
+            <span class="user-info" id="userName"></span>
+            <a href="student-dashboard.html" class="nav-link">Dashboard</a>
+            <button onclick="app.logout()" class="btn btn-outline">Logout</button>
+        </div>
+    </nav>
+
+    <div class="container">
+        <!-- Welcome Card -->
+        <div class="card">
+            <div class="card-header">
+                <h1 class="card-title">📚 Student Dashboard</h1>
+                <p class="card-subtitle" id="welcomeMessage"></p>
+            </div>
+        </div>
+
+        <!-- Quick Actions and Today's Schedule -->
+        <div class="grid-2">
+            <!-- QR Code Attendance -->
+            <div class="card">
+                <div class="card-header">
+                    <h2 class="card-title">📱 Mark Attendance</h2>
+                    <p class="card-subtitle">Enter the QR code displayed by your teacher</p>
+                </div>
+                
+                <div id="attendanceAlert" class="hidden"></div>
+                
+                <form id="attendanceForm">
+                    <div class="form-group">
+                        <label for="qrCode" class="form-label">QR Code</label>
+                        <input type="text" id="qrCode" class="form-control" 
+                               placeholder="Enter QR code (e.g., ATTENDANCE:1:2024...)" required>
+                    </div>
+                    <button type="submit" class="btn btn-secondary btn-block">
+                        Mark Present
+                    </button>
+                </form>
+                
+                <div style="margin-top: 1rem; padding: 1rem; background: var(--bg-light); border-radius: 5px;">
+                    <small style="color: var(--text-light);">
+                        💡 Tip: QR codes are valid for 5 minutes after generation. 
+                        Make sure to mark attendance promptly!
+                    </small>
+                </div>
+            </div>
+
+            <!-- Today's Schedule -->
+            <div class="card">
+                <div class="card-header">
+                    <h2 class="card-title">📅 Today's Schedule</h2>
+                    <p class="card-subtitle" id="todayDate"></p>
+                </div>
+                
+                <div id="scheduleList">
+                    <!-- Schedule will be loaded here -->
+                </div>
+            </div>
+        </div>
+
+        <!-- Recommended Activities -->
+        <div class="card">
+            <div class="card-header">
+                <h2 class="card-title">🎯 Recommended Activities for Free Time</h2>
+                <p class="card-subtitle">Personalized activities based on your interests and goals</p>
+            </div>
+            
+            <div class="grid" id="activitiesList">
+                <!-- Activities will be loaded here -->
+            </div>
+        </div>
+
+        <!-- Attendance History -->
+        <div class="card">
+            <div class="card-header">
+                <h2 class="card-title">📊 Recent Attendance</h2>
+                <p class="card-subtitle">Your attendance records for the past sessions</p>
+            </div>
+            
+            <div style="overflow-x: auto;">
+                <table class="table">
+                    <thead>
+                        <tr>
+                            <th>Class</th>
+                            <th>Date & Time</th>
+                            <th>Status</th>
+                        </tr>
+                    </thead>
+                    <tbody id="attendanceHistory">
+                        <!-- Attendance records will be loaded here -->
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <script src="app.js"></script>
+    <script>
+        // Check authentication
+        if (!app.checkAuth()) {
+            // Will redirect to login if not authenticated
+        } else {
+            const user = app.getCurrentUser();
+            
+            // Check if user is a student
+            if (user.role !== 'student') {
+                window.location.href = 'teacher-dashboard.html';
+            }
+            
+            // Update welcome message
+            document.getElementById('userName').textContent = `Welcome, ${user.name}!`;
+            document.getElementById('welcomeMessage').textContent = 
+                `Track your attendance and discover personalized learning activities`;
+            
+            // Set today's date
+            const days = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
+            const today = new Date();
+            document.getElementById('todayDate').textContent = 
+                `${days[today.getDay()]}, ${today.toLocaleDateString()}`;
+            
+            // Load today's schedule
+            loadSchedule();
+            
+            // Load suggested activities
+            loadActivities();
+            
+            // Load attendance history
+            loadAttendanceHistory();
+        }
+        
+        // Handle attendance form submission
+        document.getElementById('attendanceForm').addEventListener('submit', function(e) {
+            e.preventDefault();
+            
+            const qrCode = document.getElementById('qrCode').value;
+            const alertDiv = document.getElementById('attendanceAlert');
+            const user = app.getCurrentUser();
+            
+            // Validate QR code
+            const validation = app.validateQRCode(qrCode);
+            
+            if (validation.valid) {
+                // Mark attendance
+                const result = app.markAttendance(user.id, validation.classId);
+                
+                if (result.success) {
+                    alertDiv.className = 'alert alert-success';
+                    alertDiv.textContent = result.message;
+                    alertDiv.classList.remove('hidden');
+                    
+                    // Clear form
+                    document.getElementById('qrCode').value = '';
+                    
+                    // Reload attendance history
+                    setTimeout(() => {
+                        loadAttendanceHistory();
+                        alertDiv.classList.add('hidden');
+                    }, 3000);
+                } else {
+                    alertDiv.className = 'alert alert-warning';
+                    alertDiv.textContent = result.message;
+                    alertDiv.classList.remove('hidden');
+                }
+            } else {
+                alertDiv.className = 'alert alert-error';
+                alertDiv.textContent = validation.message;
+                alertDiv.classList.remove('hidden');
+            }
+        });
